@@ -35,7 +35,7 @@ import (
 const (
 	bucketRange        = `(0,1,2,3,4,5,6,7,8,9)`
 	querySpanByTraceID = `
-		SELECT trace_id, span_id, parent_id, operation_name, flags, start_time, duration, tags, logs, refs, process
+		SELECT trace_id, span_id, parent_id, operation_name, flags, start_time, duration, tags, logs, refs, process, incomplete
 		FROM traces
 		WHERE trace_id = ?`
 	queryByTag = `
@@ -164,12 +164,13 @@ func (s *SpanReader) readTraceInSpan(ctx context.Context, traceID dbmodel.TraceI
 	var startTime, spanID, duration, parentID int64
 	var flags int32
 	var operationName string
+	var incomplete bool
 	var dbProcess dbmodel.Process
 	var refs []dbmodel.SpanRef
 	var tags []dbmodel.KeyValue
 	var logs []dbmodel.Log
 	retMe := &model.Trace{}
-	for i.Scan(&traceIDFromSpan, &spanID, &parentID, &operationName, &flags, &startTime, &duration, &tags, &logs, &refs, &dbProcess) {
+	for i.Scan(&traceIDFromSpan, &spanID, &parentID, &operationName, &flags, &startTime, &duration, &tags, &logs, &refs, &dbProcess, &incomplete) {
 		dbSpan := dbmodel.Span{
 			TraceID:       traceIDFromSpan,
 			SpanID:        spanID,
@@ -183,6 +184,7 @@ func (s *SpanReader) readTraceInSpan(ctx context.Context, traceID dbmodel.TraceI
 			Refs:          refs,
 			Process:       dbProcess,
 			ServiceName:   dbProcess.ServiceName,
+			Incomplete:    incomplete,
 		}
 		span, err := dbmodel.ToDomain(&dbSpan)
 		if err != nil {

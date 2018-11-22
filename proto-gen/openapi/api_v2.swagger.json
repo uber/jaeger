@@ -292,6 +292,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "incomplete": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },

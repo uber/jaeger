@@ -243,6 +243,7 @@ type Span struct {
 	Process       *Process      `protobuf:"bytes,10,opt,name=process" json:"process,omitempty"`
 	ProcessID     string        `protobuf:"bytes,11,opt,name=process_id,json=processId,proto3" json:"process_id,omitempty"`
 	Warnings      []string      `protobuf:"bytes,12,rep,name=warnings" json:"warnings,omitempty"`
+	Incomplete    bool          `protobuf:"varint,13,opt,name=incomplete,proto3" json:"incomplete,omitempty"`
 }
 
 func (m *Span) Reset()                    { *m = Span{} }
@@ -311,6 +312,13 @@ func (m *Span) GetWarnings() []string {
 		return m.Warnings
 	}
 	return nil
+}
+
+func (m *Span) GetIncomplete() bool {
+	if m != nil {
+		return m.Incomplete
+	}
+	return false
 }
 
 type Trace struct {
@@ -829,6 +837,16 @@ func (m *Span) MarshalTo(dAtA []byte) (int, error) {
 			i += copy(dAtA[i:], s)
 		}
 	}
+	if m.Incomplete {
+		dAtA[i] = 0x68
+		i++
+		if m.Incomplete {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
+	}
 	return i, nil
 }
 
@@ -1092,6 +1110,9 @@ func (m *Span) Size() (n int) {
 			l = len(s)
 			n += 1 + l + sovModel(uint64(l))
 		}
+	}
+	if m.Incomplete {
+		n += 2
 	}
 	return n
 }
@@ -2100,6 +2121,26 @@ func (m *Span) Unmarshal(dAtA []byte) error {
 			}
 			m.Warnings = append(m.Warnings, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
+		case 13:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Incomplete", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowModel
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Incomplete = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipModel(dAtA[iNdEx:])
