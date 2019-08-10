@@ -161,6 +161,11 @@ func TestIndexSeeks(t *testing.T) {
 							VStr:  fmt.Sprintf("val%d", j),
 							VType: model.StringType,
 						},
+						{
+							Key:   "error",
+							VType: model.BoolType,
+							VBool: true,
+						},
 					},
 				}
 				err := sw.WriteSpan(&s)
@@ -200,6 +205,7 @@ func TestIndexSeeks(t *testing.T) {
 		params.OperationName = "operation-1"
 		tags := make(map[string]string)
 		tags["k11"] = "val0"
+		tags["error"] = "true"
 		params.Tags = tags
 		params.DurationMin = time.Duration(1 * time.Millisecond)
 		// params.DurationMax = time.Duration(1 * time.Hour)
@@ -208,9 +214,9 @@ func TestIndexSeeks(t *testing.T) {
 		assert.Equal(t, 1, len(trs))
 
 		// Query limited amount of hits
-
 		params.StartTimeMax = startT.Add(time.Duration(time.Hour * 1))
 		delete(params.Tags, "k11")
+		// delete(params.Tags, "error")
 		params.NumTraces = 2
 		trs, err = sr.FindTraces(context.Background(), params)
 		assert.NoError(t, err)
@@ -435,4 +441,40 @@ func runFactoryTest(tb testing.TB, test func(tb testing.TB, sw spanstore.Writer,
 
 	}()
 	test(tb, sw, sr)
+}
+
+func BenchmarkWrites(b *testing.B) {
+	runFactoryTest(b, func(tb testing.TB, sw spanstore.Writer, sr spanstore.Reader) {
+		tid := time.Now()
+		traces := 100000
+		services := 4
+		spans := 3
+		b.StartTimer()
+		b.SetParallelism(4)
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				for a := 0; a < b.N; a++ {
+					for i := 0; i < traces; i++ {
+						for j := 0; j < spans; j++ {
+							s := model.Span{
+								TraceID: model.TraceID{
+									Low:  uint64(i),
+									High: 1,
+								},
+								SpanID:        model.SpanID(j),
+								OperationName: fmt.Sprintf("operation-%d", j),
+								Process: &model.Process{
+									ServiceName: fmt.Sprintf("service-%d", i%services),
+								},
+								StartTime: tid.Add(time.Duration(i)),
+								Duration:  time.Duration(i + j),
+							}
+							_ = sw.WriteSpan(&s)
+						}
+					}
+				}
+			}
+		})
+		b.StopTimer()
+	})
 }
