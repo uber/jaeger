@@ -118,6 +118,13 @@ func (f *Factory) Initialize(metricsFactory metrics.Factory, logger *zap.Logger)
 	}
 	f.store = store
 
+	err = badgerStore.SchemaUpdate(store, logger)
+	if err != nil {
+		logger.Error("Failed to update the schema, badger storage failed to start: " + err.Error())
+		store.Close()
+		return err
+	}
+
 	f.cache = badgerStore.NewCacheStore(f.store, f.Options.primary.SpanStoreTTL, true)
 
 	f.metrics.ValueLogSpaceAvailable = metricsFactory.Gauge(metrics.Options{Name: valueLogSpaceAvailableName})
@@ -191,8 +198,6 @@ func (f *Factory) maintenance() {
 			}
 			if err == badger.ErrNoRewrite {
 				f.metrics.LastValueLogCleaned.Update(t.UnixNano())
-			} else {
-				f.logger.Error("Failed to run ValueLogGC", zap.Error(err))
 			}
 
 			f.metrics.LastMaintenanceRun.Update(t.UnixNano())
