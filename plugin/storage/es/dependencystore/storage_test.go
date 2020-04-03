@@ -47,7 +47,12 @@ func withDepStorage(indexPrefix string, fn func(r *depStorageTest)) {
 		client:    client,
 		logger:    logger,
 		logBuffer: logBuffer,
-		storage:   NewDependencyStore(client, logger, indexPrefix),
+		storage: NewDependencyStore(DSParams{
+			Client:              client,
+			Logger:              logger,
+			IndexPrefix:         indexPrefix,
+			UseReadWriteAliases: false,
+		}),
 	}
 	fn(r)
 }
@@ -66,8 +71,13 @@ func TestNewSpanReaderIndexPrefix(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		client := &mocks.Client{}
-		r := NewDependencyStore(client, zap.NewNop(), testCase.prefix)
-		assert.Equal(t, testCase.expected+dependencyIndex, r.indexPrefix)
+		r := NewDependencyStore(DSParams{
+			Client:              client,
+			Logger:              zap.NewNop(),
+			IndexPrefix:         testCase.prefix,
+			UseReadWriteAliases: false,
+		})
+		assert.Equal(t, testCase.expected+dependencyIndex, r.dependencyIndexPrefix)
 	}
 }
 
@@ -222,7 +232,14 @@ func TestGetIndices(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		assert.EqualValues(t, testCase.expected, getIndices(testCase.prefix, fixedTime, testCase.lookback))
+		client := &mocks.Client{}
+		r := NewDependencyStore(DSParams{
+			Client:              client,
+			Logger:              zap.NewNop(),
+			IndexPrefix:         testCase.prefix,
+			UseReadWriteAliases: false,
+		})
+		assert.EqualValues(t, testCase.expected, r.getReadIndices(fixedTime, testCase.lookback))
 	}
 }
 
