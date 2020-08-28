@@ -111,8 +111,7 @@ func (f *Factory) CreateSpanWriter() (spanstore.Writer, error) {
 
 // CreateDependencyReader implements storage.Factory
 func (f *Factory) CreateDependencyReader() (dependencystore.Reader, error) {
-	reader := esDepStore.NewDependencyStore(f.primaryClient, f.logger, f.primaryConfig.GetIndexPrefix())
-	return reader, nil
+	return createDependencyReader(f.logger, f.primaryClient, f.primaryConfig)
 }
 
 // CreateArchiveSpanReader implements storage.ArchiveFactory
@@ -184,6 +183,29 @@ func createSpanWriter(
 		}
 	}
 	return writer, nil
+}
+
+func createDependencyReader(
+	logger *zap.Logger,
+	client es.Client,
+	cfg config.ClientBuilder,
+) (dependencystore.Reader, error) {
+
+	dependenciesMappings := GetDependenciesMappings(cfg.GetNumShards(), cfg.GetNumReplicas(), client.GetVersion())
+	reader := esDepStore.NewDependencyStore(esDepStore.DSParams{
+		Client:              client,
+		Logger:              logger,
+		IndexPrefix:         cfg.GetIndexPrefix(),
+		UseReadWriteAliases: cfg.GetUseReadWriteAliases(),
+	})
+	if cfg.IsCreateIndexTemplates() {
+		err := reader.CreateTemplates(dependenciesMappings)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return reader, nil
 }
 
 // GetSpanServiceMappings returns span and service mappings

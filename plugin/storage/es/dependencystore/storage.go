@@ -31,36 +31,50 @@ import (
 )
 
 const (
-	dependencyType  = "dependencies"
-	dependencyIndex = "jaeger-dependencies-"
+	dependencyType       = "dependencies"
+	dependencyIndex      = "jaeger-dependencies-"
+	indexPrefixSeparator = "-"
 )
 
 // DependencyStore handles all queries and insertions to ElasticSearch dependencies
 type DependencyStore struct {
-	ctx         context.Context
-	client      es.Client
-	logger      *zap.Logger
-	indexPrefix string
+	ctx                   context.Context
+	client                es.Client
+	logger                *zap.Logger
+	dependencyIndexPrefix string
+	useReadWriteAliases   bool
+}
+
+// DSParams holds constructor parameters for NewDependencyStore
+type DSParams struct {
+	Client              es.Client
+	Logger              *zap.Logger
+	IndexPrefix         string
+	UseReadWriteAliases bool
 }
 
 // NewDependencyStore returns a DependencyStore
-func NewDependencyStore(client es.Client, logger *zap.Logger, indexPrefix string) *DependencyStore {
-	var prefix string
-	if indexPrefix != "" {
-		prefix = indexPrefix + "-"
-	}
+func NewDependencyStore(p DSParams) *DependencyStore {
 	return &DependencyStore{
-		ctx:         context.Background(),
-		client:      client,
-		logger:      logger,
-		indexPrefix: prefix + dependencyIndex,
+		ctx:                   context.Background(),
+		client:                p.Client,
+		logger:                p.Logger,
+		dependencyIndexPrefix: prefixIndexName(p.IndexPrefix, dependencyIndex),
+		useReadWriteAliases:   p.UseReadWriteAliases,
 	}
+}
+
+func prefixIndexName(prefix, index string) string {
+	if prefix != "" {
+		return prefix + indexPrefixSeparator + index
+	}
+	return index
 }
 
 // WriteDependencies implements dependencystore.Writer#WriteDependencies.
 func (s *DependencyStore) WriteDependencies(ts time.Time, dependencies []model.DependencyLink) error {
-	indexName := indexWithDate(s.indexPrefix, ts)
-	s.writeDependencies(indexName, ts, dependencies)
+	writeIndexName := s.getWriteIndex(ts)
+	s.writeDependencies(writeIndexName, ts, dependencies)
 	return nil
 }
 
@@ -82,7 +96,8 @@ func (s *DependencyStore) writeDependencies(indexName string, ts time.Time, depe
 
 // GetDependencies returns all interservice dependencies
 func (s *DependencyStore) GetDependencies(endTs time.Time, lookback time.Duration) ([]model.DependencyLink, error) {
-	indices := getIndices(s.indexPrefix, endTs, lookback)
+	indices := s.getReadIndices(endTs, lookback)
+
 	searchResult, err := s.client.Search(indices...).
 		Size(10000). // the default elasticsearch allowed limit
 		Query(buildTSQuery(endTs, lookback)).
@@ -109,16 +124,28 @@ func buildTSQuery(endTs time.Time, lookback time.Duration) elastic.Query {
 	return elastic.NewRangeQuery("timestamp").Gte(endTs.Add(-lookback)).Lte(endTs)
 }
 
-func getIndices(prefix string, ts time.Time, lookback time.Duration) []string {
+func (s *DependencyStore) getReadIndices(ts time.Time, lookback time.Duration) []string {
 	var indices []string
-	firstIndex := indexWithDate(prefix, ts.Add(-lookback))
-	currentIndex := indexWithDate(prefix, ts)
+
+	if s.useReadWriteAliases {
+		return append(indices, s.dependencyIndexPrefix+"read")
+	}
+
+	firstIndex := indexWithDate(s.dependencyIndexPrefix, ts.Add(-lookback))
+	currentIndex := indexWithDate(s.dependencyIndexPrefix, ts)
 	for currentIndex != firstIndex {
 		indices = append(indices, currentIndex)
 		ts = ts.Add(-24 * time.Hour)
-		currentIndex = indexWithDate(prefix, ts)
+		currentIndex = indexWithDate(s.dependencyIndexPrefix, ts)
 	}
 	return append(indices, firstIndex)
+}
+
+func (s *DependencyStore) getWriteIndex(ts time.Time) string {
+	if s.useReadWriteAliases {
+		return s.dependencyIndexPrefix + "write"
+	}
+	return indexWithDate(s.dependencyIndexPrefix, ts)
 }
 
 func indexWithDate(indexNamePrefix string, date time.Time) string {
