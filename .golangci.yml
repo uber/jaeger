@@ -1,0 +1,52 @@
+# options for analysis running
+run:
+  # default concurrency is a available CPU number
+  # timeout for analysis, e.g. 30s, 5m, default is 1m
+  timeout: 5m
+linters:
+  # please, do not use `enable-all`: it's deprecated and will be removed soon.
+  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
+  disable-all: true
+  enable:
+    - typecheck
+    - govet
+    - gosec
+    - gofmt
+    - golint
+    - goimports
+    - structcheck
+    - deadcode
+    - gosimple
+    - unused
+    - bodyclose
+    - misspell
+
+issues:
+  exclude-use-default: true
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gomnd
+        - dupl
+        - interfacer
+        - gosec
+        - bodyclose
+        - golint
+    - path: _nolint\.go
+      linters:
+        - golint
+    - path: /mocks/
+      linters:
+        - goimports
+
+
+    - linters:
+        - stylecheck
+      text: "ST1000:"
+    - linters:
+        - gosec
+      text: "G104:|G107:|G404:"
+    - path: cmd/opentelemetry
+      linters:
+        - gosec
+
