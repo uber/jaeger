@@ -8,7 +8,6 @@ ALL_SRC := $(shell find . -name '*.go' \
 				   -not -name 'doc.go' \
 				   -not -name '_*' \
 				   -not -name '.*' \
-				   -not -name 'gen_assets.go' \
 				   -not -name 'mocks*' \
 				   -not -name 'model.pb.go' \
 				   -not -name 'model_test.pb.go' \
@@ -396,7 +395,6 @@ changelog:
 install-tools:
 	go install github.com/wadey/gocovmerge
 	go install golang.org/x/lint/golint
-	go install github.com/mjibson/esc
 	go install github.com/securego/gosec/cmd/gosec
 	go install honnef.co/go/tools/cmd/staticcheck
 
