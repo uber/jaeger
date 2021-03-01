@@ -26,5 +26,5 @@ import (
 //go:embed actual/*
 var assetsFS embed.FS
 
-// StaticFiles provides http filesystem with static files for UI
+// StaticFiles provides http filesystem with static files for UI.
 var StaticFiles = httpfs.PrefixedFS("actual", http.FS(assetsFS))
