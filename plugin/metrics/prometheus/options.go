@@ -72,7 +72,7 @@ func (opt *Options) InitFromViper(v *viper.Viper) {
 	cfg := &opt.Primary
 	cfg.ServerURL = stripWhiteSpace(v.GetString(cfg.namespace + suffixServerURL))
 	cfg.ConnectTimeout = v.GetDuration(cfg.namespace + suffixConnectTimeout)
-	cfg.TLS = cfg.getTLSFlagsConfig().InitFromViper(v)
+	cfg.TLS, _ = cfg.getTLSFlagsConfig().InitFromViper(v)
 }
 
 func (config *namespaceConfig) getTLSFlagsConfig() tlscfg.ClientFlagsConfig {

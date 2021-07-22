@@ -254,7 +254,7 @@ func (cfg *namespaceConfig) initFromViper(v *viper.Viper) {
 	cfg.Authenticator.Basic.Username = v.GetString(cfg.namespace + suffixUsername)
 	cfg.Authenticator.Basic.Password = v.GetString(cfg.namespace + suffixPassword)
 	cfg.DisableCompression = v.GetBool(cfg.namespace + suffixDisableCompression)
-	cfg.TLS = tlsFlagsConfig.InitFromViper(v)
+	cfg.TLS, _ = tlsFlagsConfig.InitFromViper(v)
 }
 
 // GetPrimary returns primary configuration.

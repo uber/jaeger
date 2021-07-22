@@ -321,7 +321,6 @@ func initFromViper(cfg *namespaceConfig, v *viper.Viper) {
 
 	// TODO: Need to figure out a better way for do this.
 	cfg.AllowTokenFromContext = v.GetBool(spanstore.StoragePropagationKey)
-	cfg.TLS = cfg.getTLSFlagsConfig().InitFromViper(v)
 
 	remoteReadClusters := stripWhiteSpace(v.GetString(cfg.namespace + suffixRemoteReadClusters))
 	if len(remoteReadClusters) > 0 {
@@ -337,6 +336,8 @@ func initFromViper(cfg *namespaceConfig, v *viper.Viper) {
 
 	// Dependencies calculation should be daily, and this index size is very small
 	cfg.IndexDateLayoutDependencies = initDateLayout(defaultIndexRolloverFrequency, separator)
+
+	cfg.TLS, _ = cfg.getTLSFlagsConfig().InitFromViper(v)
 }
 
 // GetPrimary returns primary configuration.
